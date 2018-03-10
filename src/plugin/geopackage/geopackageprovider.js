@@ -100,7 +100,10 @@ plugin.geopackage.GeoPackageProvider.prototype.finish = function() {
  * @return {number} per typical compare functions
  */
 plugin.geopackage.GeoPackageProvider.sort_ = function(a, b) {
-  return goog.string.numerateCompare(a.getLabel(), b.getLabel());
+  if ((!a.getLabel()) || (!b.getLabel())) {
+    return 0;
+  }
+  return goog.string.intAwareCompare(/** @type{string} */ (a.getLabel()), /** @type{string} */ (b.getLabel()));
 };
 
 
