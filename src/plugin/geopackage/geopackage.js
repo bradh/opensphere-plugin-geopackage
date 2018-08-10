@@ -81,6 +81,17 @@ plugin.geopackage.getWorker = function() {
 
       // bracket notation because closure + browser AND node is gonna suck
       var cp = window['require']('child_process');
+
+      // to debug this guy:
+      //  - open chrome://inspect/#devices
+      //  - change the next two lines here to the debug version
+      //  - open/start the application
+      //  - go to your chrome://inspect/#devices tab in Chrome
+      //  - select "Inspect" on the newly visible item
+
+      // debug version
+      // var child = cp['fork'](src, [], {execArgv: ['--inspect-brk']});
+      // prod version
       var child = cp['fork'](src);
 
       child['addEventListener'] = child['addListener'];

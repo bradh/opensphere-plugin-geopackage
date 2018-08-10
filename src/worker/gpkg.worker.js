@@ -1,4 +1,16 @@
 /**
+ * @fileoverview To debug as a Worker, look for the thread picker in Chrome dev tools
+ *
+ * To debug as a node child process:
+ *  - open chrome://inspect/#devices
+ *  - change the line in plugin.geopackage.getWorker() that forks the process to the
+ *    debug version
+ *  - open the application
+ *  - go to your chrome://inspect/#devices tab in Chrome
+ *  - select "Inspect" on the newly visible item
+ */
+
+/**
  * Worker to provide GPKG access to avoid blocking the main thread during database interactions
  */
 'use strict';
@@ -275,8 +287,8 @@ var listDescriptors = function(msg) {
           type: 'geopackage-tile',
           title: info.tableName,
           tableName: info.tableName,
-          minZoom: Math.round(info.minZoom),
-          maxZoom: Math.round(info.maxZoom),
+          gpkgMinZoom: Math.round(info.minZoom),
+          gpkgMaxZoom: Math.round(info.maxZoom),
           resolutions: fixResolutions(tileMatrices.map(getTileMatrixToResolutionMapper(info))),
           tileSizes: fixSizes(tileMatrices.map(tileMatrixToTileSize))
         };
@@ -394,6 +406,32 @@ var listDescriptors = function(msg) {
   }
 };
 
+/**
+ * @param {GeoPackageWorkerMessage} msg
+ */
+var getTileHandler = function(msg) {
+  return function(err, tile) {
+    if (err) {
+      handleError(err, msg);
+      return;
+    }
+
+    if (!tile) {
+      success(msg);
+      return;
+    }
+
+    var array = tile instanceof Buffer ? tile : tile.getTileData();
+
+    if (isNode) {
+      success(msg, Array.from(new Int32Array(array)));
+    } else {
+      var blob = new Blob([array]);
+      success(msg, URL.createObjectURL(blob));
+    }
+  };
+};
+
 
 /**
  * @param {GeoPackageWorkerMessage} msg
@@ -406,36 +444,30 @@ var getTile = function(msg) {
     return;
   }
 
-  if (!msg.tileCoord) {
-    handleError('tileCoord property must be set', msg);
+  if (!msg.zoom) {
+    handleError('zoom property must be set', msg);
     return;
   }
 
-  if (msg.tileCoord.length !== 3) {
-    handleError('tileCoord [z, x, y] must have a length of exactly 3', msg);
+  if (!msg.projection) {
+    handleError('projection property must be set', msg);
     return;
   }
 
-  var onTile = function(err, tile) {
-    if (err) {
-      handleError(err, msg);
-      return;
-    }
+  if (!msg.width) {
+    handleError('width property must be set', msg);
+    return;
+  }
 
-    if (!tile) {
-      success(msg);
-      return;
-    }
+  if (!msg.height) {
+    handleError('height property must be set', msg);
+    return;
+  }
 
-    var array = tile.getTileData();
-
-    if (isNode) {
-      success(msg, Array.from(new Int32Array(array)));
-    } else {
-      var blob = new Blob([array]);
-      success(msg, URL.createObjectURL(blob));
-    }
-  };
+  if (!msg.extent) {
+    handleError('extent (ol.Extent in EPSG:4326) property must be set', msg);
+    return;
+  }
 
   var onTileDao = function(err, tileDao) {
     if (err) {
@@ -443,9 +475,11 @@ var getTile = function(msg) {
       return;
     }
 
-    tileDao.queryForTile(msg.tileCoord[1], -msg.tileCoord[2] - 1, msg.tileCoord[0], onTile);
+    new geopackage.GeoPackageTileRetriever(tileDao, msg.width, msg.height)
+        .getTileWithWgs84BoundsInProjection(
+        new geopackage.BoundingBox(msg.extent[0], msg.extent[2], msg.extent[1], msg.extent[3]),
+        msg.zoom, msg.projection, getTileHandler(msg));
   };
-
   gpkg.getTileDaoWithTableName(msg.tableName, onTileDao);
 };
 
@@ -743,11 +777,13 @@ var onMessage = function(evt) {
 };
 
 
-// the browser library needs this to exist
-var window = this;
+var window;
+var that = this;
 
 (function() {
   if (typeof self === 'object') {
+    // the browser library needs this to exist
+    window = that;
     self.addEventListener('message', onMessage);
   } else {
     isNode = true;
@@ -761,5 +797,6 @@ var window = this;
     };
 
     geopackage = require('@ngageoint/geopackage');
+    geopackage.BoundingBox = require('@ngageoint/geopackage/lib/boundingBox');
   }
 })();

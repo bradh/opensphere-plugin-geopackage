@@ -28,19 +28,24 @@ goog.inherits(plugin.geopackage.TileLayerConfig, os.layer.config.AbstractTileLay
 plugin.geopackage.TileLayerConfig.prototype.getSource = function(options) {
   var parts = options['id'].split(os.ui.data.BaseProvider.ID_DELIMITER);
 
+  var gpkgTileGrid = new ol.tilegrid.TileGrid(/** @type {olx.tilegrid.TileGridOptions} */ ({
+    'extent': options.extent,
+    'minZoom': Math.max(0, Math.round(options['gpkgMinZoom'])),
+    'resolutions': options['resolutions'],
+    'tileSizes': options['tileSizes']
+  }));
+
+  var layerTileGrid = ol.tilegrid.createForProjection(os.map.PROJECTION, ol.DEFAULT_MAX_ZOOM, [256, 256]);
+
   var source = new ol.source.TileImage(/** @type {olx.source.TileImageOptions} */ ({
     'projection': this.projection,
-    'tileLoadFunction': plugin.geopackage.getTileLoadFunction_(parts[0]),
+    'tileLoadFunction': plugin.geopackage.getTileLoadFunction_(parts[0], gpkgTileGrid, layerTileGrid),
     'tileUrlFunction': plugin.geopackage.getTileUrlFunction_(parts[1]),
-    'tileGrid': new ol.tilegrid.TileGrid(/** @type {olx.tilegrid.TileGridOptions} */ ({
-      'extent': options.extent,
-      'minZoom': Math.max(0, Math.round(options['minZoom'])),
-      'resolutions': options['resolutions'],
-      'tileSizes': options['tileSizes']
-    })),
+    'tileGrid': layerTileGrid,
     'wrapX': this.projection.isGlobal()
   }));
 
+  source.setExtent(options.extent);
   plugin.geopackage.addTileListener_();
   return source;
 };
@@ -48,10 +53,12 @@ plugin.geopackage.TileLayerConfig.prototype.getSource = function(options) {
 
 /**
  * @param {string} providerId
+ * @param {ol.tilegrid.TileGrid} gpkgTileGrid
+ * @param {ol.tilegrid.TileGrid} tileGrid
  * @return {!ol.TileLoadFunctionType}
  * @private
  */
-plugin.geopackage.getTileLoadFunction_ = function(providerId) {
+plugin.geopackage.getTileLoadFunction_ = function(providerId, gpkgTileGrid, tileGrid) {
   return (
     /**
      * @param {ol.Tile} tile The image tile
@@ -66,14 +73,25 @@ plugin.geopackage.getTileLoadFunction_ = function(providerId) {
       }
 
       if (layerName) {
+        var tileCoord = imageTile.getTileCoord();
+        var extent = tileGrid.getTileCoordExtent(tileCoord);
+        extent = ol.proj.transformExtent(extent, os.map.PROJECTION, os.proj.EPSG4326);
+        var layerResolution = tileGrid.getResolution(tileCoord[0]);
+        var gpkgZoom = gpkgTileGrid.getZForResolution(layerResolution);
+        var size = tileGrid.getTileSize(tileCoord[0]);
+
         var msg = /** @type {GeoPackageWorkerMessage} */ ({
           id: providerId,
           type: plugin.geopackage.MsgType.GET_TILE,
           tableName: layerName,
-          tileCoord: imageTile.getTileCoord()
+          projection: os.map.PROJECTION.getCode(),
+          extent: extent,
+          zoom: gpkgZoom,
+          width: size[0],
+          height: size[1]
         });
 
-        var key = msg.id + '#' + msg.type + '#' + msg.tableName + '#' + msg.tileCoord.join(',');
+        var key = msg.id + '#' + msg.type + '#' + msg.tableName + '#' + msg.extent.join(',');
         plugin.geopackage.tiles_[key] = imageTile;
         plugin.geopackage.getWorker().postMessage(msg);
       }
@@ -115,7 +133,7 @@ plugin.geopackage.tileListener_ = function(evt) {
 
   if (msg.message.type === plugin.geopackage.MsgType.GET_TILE) {
     var key = msg.message.id + '#' + msg.message.type + '#' + msg.message.tableName + '#' +
-        msg.message.tileCoord.join(',');
+        (msg.message.tileCoord || msg.message.extent).join(',');
     var imageTile = plugin.geopackage.tiles_[key];
 
     if (imageTile) {
