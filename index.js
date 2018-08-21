@@ -43,9 +43,13 @@ module.exports = {
     id: 'index',
     skip: true,
     resources: [{
-      source: resolver.resolveModulePath('@ngageoint/geopackage', __dirname),
+      source: path.join(__dirname, 'src', 'worker'),
+      target: 'src/worker',
+      files: ['gpkg.worker.js']
+    }, {
+      source: resolver.resolveModulePath('@ngageoint/geopackage/dist'),
       target: 'vendor/geopackage',
-      scripts: ['dist/geopackage.min.js']
+      files: ['geopackage.min.js']
     }]
   }],
   debugCss: path.relative(__dirname, path.join(buildPath, 'combined.css')),

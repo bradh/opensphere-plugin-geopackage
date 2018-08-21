@@ -2,6 +2,7 @@
 const path = require('path');
 const helper = require('opensphere-build-closure-helper');
 var resolver = require('opensphere-build-resolver/utils');
+var fs = require('fs');
 
 module.exports = function(config) {
   var closureFiles = helper.readManifest(path.resolve('.build', 'gcc-test-manifest'))
@@ -9,6 +10,11 @@ module.exports = function(config) {
       return item.indexOf('/src/core/debugutil.js') === -1 &&
         item.indexOf('test/') !== 0;
     });
+
+  // get gpkg library location and add a script karma can load to set it in-browser
+  var gpkg = resolver.resolveModulePath('@ngageoint/geopackage/dist/geopackage.min.js', __dirname);
+  fs.writeFileSync(path.join(__dirname, '.build', 'gpkg-define.js'),
+    'plugin.geopackage.GPKG_PATH = "/absolute' + gpkg + '"');
 
   config.set({
     // base path, that will be used to resolve files and exclude
@@ -20,6 +26,7 @@ module.exports = function(config) {
     // list of files / patterns to load in the browser
     files: [
       {pattern: '.build/modernizr.js', watched: false, included: true, served: true},
+      {pattern: 'src/worker/gpkg.worker.js', watched: false, included: false, served: true},
       {pattern: resolver.resolveModulePath('opensphere-asm/dist/os-wasm.*', __dirname), watched: false, included: false, served: true},
       {pattern: resolver.resolveModulePath('opensphere-asm/dist/os-asm.*', __dirname), watched: false, included: false, served: true},
       {pattern: resolver.resolveModulePath('opensphere-asm/dist/os-load.js', __dirname), watched: false, included: true, served: true},
@@ -33,9 +40,10 @@ module.exports = function(config) {
       {pattern: resolver.resolveModulePath('d3/d3.min.js', __dirname), watched: false, included: true, served: true},
       {pattern: resolver.resolveModulePath('jsts/dist/jsts.min.js', __dirname), watched: false, included: true, served: true},
       {pattern: resolver.resolveModulePath('moment/min/moment.min.js', __dirname), watched: false, included: true, served: true},
-      {pattern: resolver.resolveModulePath('cesium/Build/Cesium/Cesium.js', __dirname), watched: false, included: true, served: true}
+      {pattern: resolver.resolveModulePath('cesium/Build/Cesium/Cesium.js', __dirname), watched: false, included: true, served: true},
+      {pattern: resolver.resolveModulePath('@ngageoint/geopackage/dist/geopackage.min.js', __dirname), watched: false, included: false, served: true},
     ].concat(closureFiles).concat([
-      // {pattern: resolver.resolveModulePath('opensphere/test/init.js', __dirname), watched: false, included: true, served: true},
+      '.build/gpkg-define.js',
 
       // tests and mocks
       'test/**/*.mock.js',

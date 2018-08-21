@@ -14,13 +14,13 @@
     "type": "plugin",
     "pluggable": false,
     "index": "index.js",
-    "config": [
-      "config/settings.json"
-    ],
     "gcc": {
       "entry_point": [
         "goog:plugin.geopackage.GeoPackagePlugin"
       ]
+    },
+    "moduleDefines": {
+      "plugin.geopackage.GPKG_PATH": "@ngageoint/geopackage/dist/geopackage.min.js"
     }
   },
   "scripts": {
@@ -100,7 +100,7 @@
     "validate-commit-msg": "^2.8.2"
   },
   "dependencies": {
-    "opensphere": "^1.0.0",
-    "@ngageoint/geopackage": "^1.0.24"
+    "@ngageoint/geopackage": "^1.1.3",
+    "opensphere": "^1.0.0"
   }
 }
