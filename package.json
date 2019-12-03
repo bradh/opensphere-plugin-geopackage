@@ -7,26 +7,29 @@
     "src": "src",
     "test": "test",
     "externs": "externs",
-    "scss": "scss",
-    "views": "views"
+    "scss": "scss"
   },
   "build": {
     "type": "plugin",
     "pluggable": false,
     "index": "index.js",
-    "config": [
-      "config/settings.json"
-    ],
+    "electron": {
+      "packages": ["@ngageoint/geopackage"],
+      "preload": ["./src/electron/preload.js"]
+    },
     "gcc": {
       "entry_point": [
         "goog:plugin.geopackage.GeoPackagePlugin"
       ]
+    },
+    "moduleDefines": {
+      "plugin.geopackage.GPKG_PATH": "@ngageoint/geopackage/dist/geopackage.min.js"
     }
   },
   "scripts": {
     "apidoc": "npm run compile:resolve && npm run compile:gcc && npm run compile:dossier",
     "modernizr": "modernizr -c modernizr.config.json -u -d .build/modernizr.js",
-    "test:gcc": "os-compile $(cat .build/gcc-test-args)",
+    "test:gcc": "os-compile .build/gcc-test-args.json",
     "test:init": "npm run init && npm run modernizr && npm run compile:resolve && npm run test:gcc",
     "test:run": "karma start --single-run",
     "test": "npm run test:init && npm run test:run",
@@ -38,7 +41,7 @@
     "lint": "npm run lint:js && npm run lint:css",
     "compile:jsdoc": "npm run init:apidoc && os-docs-gen-config jsdoc.conf.json .build/jsdoc.conf.json && jsdoc -c .build/jsdoc.conf.json",
     "compile:dossier": "npm run init:apidoc && os-docs-gen-config dossier.conf.json .build/dossier.conf.json && java -jar node_modules/js-dossier/dossier.jar -c .build/dossier.conf.json",
-    "compile:resolve": "os-resolve .build",
+    "compile:resolve": "os-resolve --outputDir .build --exclude resources",
     "compile:css": "node-sass $(cat .build/node-sass-args) > .build/test.min.css",
     "compile:gcc": "os-compile $(cat .build/gcc-java-args)",
     "compile": "npm run compile:resolve && npm run compile:gcc && npm run compile:css",
@@ -72,11 +75,9 @@
     "conventional-changelog-cli": "^1.2.0",
     "conventional-recommended-bump": "^0.3.0",
     "cz-conventional-changelog": "^1.2.0",
-    "eslint": "^3.11.1",
-    "eslint-config-google": "^0.7.1",
-    "eslint-config-opensphere": "^1.1.0",
-    "eslint-plugin-google-camelcase": "0.0.2",
-    "google-closure-compiler": "^20160911.0.0",
+    "eslint": "^6.0.0",
+    "eslint-config-opensphere": "^3.0.0",
+    "google-closure-compiler": "^20190415.0.0",
     "husky": "^0.13.3",
     "jasmine-core": "^2.5.2",
     "js-dossier": "^0.10.0",
@@ -87,20 +88,19 @@
     "karma-firefox-launcher": "^1.1.0",
     "karma-jasmine": "^0.1.0",
     "karma-junit-reporter": "^1.1.0",
-    "karma-phantomjs-launcher": "^1.0.2",
     "mkdirp": "^0.5.1",
     "modernizr": "~3.3.1",
-    "node-sass": "^4.7.2",
-    "opensphere-build-closure-helper": "^1.0.0",
-    "opensphere-build-docs": "^1.0.0",
-    "opensphere-build-resolver": "^2.1.0",
+    "node-sass": "^4.12.0",
+    "opensphere-build-closure-helper": "^4.0.0",
+    "opensphere-build-docs": "^2.0.0",
+    "opensphere-build-resolver": "^6.2.1",
     "replace": "^0.3.0",
     "rimraf": "^2.5.4",
     "sass-lint": "^1.9.1",
     "validate-commit-msg": "^2.8.2"
   },
   "dependencies": {
-    "opensphere": "^1.0.0",
-    "@ngageoint/geopackage": "^1.0.24"
+    "@ngageoint/geopackage": "^2.0.0",
+    "opensphere": "0.0.0-development"
   }
 }
